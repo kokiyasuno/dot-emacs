@@ -1,3 +1,5 @@
-/var
+/auto-save-list/
+/eln-cache/
 /straight/*
 !/straight/versions
+/var/

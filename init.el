@@ -131,3 +131,15 @@
 (use-package savehist
   :config
   (savehist-mode))
+
+(use-package orderless
+  :straight t
+  :config
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles partial-completion)))))
+
+(use-package marginalia
+  :straight t
+  :config
+  (marginalia-mode))
