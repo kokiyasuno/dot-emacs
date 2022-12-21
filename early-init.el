@@ -6,4 +6,4 @@
 (push '(menu-bar-lines . 0) default-frame-alist)
 (push '(vertical-scroll-bars) default-frame-alist)
 (push '(horizontal-scroll-bars) default-frame-alist)
-(push (cons 'font "FantasqueSansMono Nerd Font-10") default-frame-alist)
+(push (cons 'font "FantasqueSansMono Nerd Font-14") default-frame-alist)

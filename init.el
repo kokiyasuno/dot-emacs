@@ -1,9 +1,16 @@
 (setq-default line-spacing 1)
 
-(setq mac-command-modifier 'meta
-      native-comp-async-report-warnings-errors nil
-      straight-use-package-by-default t
-      use-package-enable-imenu-support t)
+(setq
+ gc-cons-threshold (* 100 1024 1024)
+ mac-command-modifier 'meta
+ native-comp-async-report-warnings-errors nil
+ read-process-output-max (* 1024 1024)
+ split-height-threshold nil
+ split-width-threshold 0
+ straight-use-package-by-default t
+ use-package-enable-imenu-support t)
+
+(set-locale-environment "en_US.UTF-8")
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -24,7 +31,7 @@
   :custom
   (aw-dispatch-always t)
   (aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
-  :bind ("M-o" . ace-window))
+  :bind ("C-c o" . ace-window))
 
 (use-package cape
   :after corfu
@@ -35,18 +42,75 @@
   (corfu-auto t)
   :config
   (global-corfu-mode)
-
   (defun meow-exit-corfu ()
     "Close corfu popup if it is active."
     (when corfu-mode (corfu-quit)))
-
   (add-hook 'meow-insert-exit-hook #'meow-exit-corfu))
 
-(use-package lsp-docker
-  :after lsp-mode)
+(use-package denote
+  :custom
+  (denote-directory "~/org")
+  (denote-dired-directories `(,denote-directory))
+  (denote-org-front-matter
+   "#+title:       %s
+#+date:       %s
+#+filetags:   %s
+#+identifier: %s
+\n")
+  :preface
+  ;; TODO: Check the same date journal file and jump to it
+  (defun denote-journal ()
+    "Create an entry tagged 'journal' with the date as its title."
+    (interactive)
+    (denote
+     (format-time-string "%B %e, %Y")
+     '("journal")))
+  :hook (dired-mode . denote-dired-mode-in-directories)
+  :bind (("C-c n j" . denote-journal)))
+
+(use-package dired
+  :straight (:type built-in)
+  :custom
+  (dired-dwim-target t))
+
+  (use-package doom-themes
+  :custom
+  (doom-themes-enable-bold t)
+  (doom-themes-enable-italic t)
+  :config
+  (load-theme 'doom-Iosvkem t))
+
+(use-package eat
+  :straight (eat :fetcher git
+		 :url "/home/akib/projects/emacs-eat"
+		 :files ("*.el" ("term" "term/*.el") "*.texi"
+			 "*.ti" ("e" "e/*")
+			 ("integration" "integration/*")
+			 (:exclude ".dir-locals.el" "*-tests.el")))
+  :hook (eshell-mode . eat-eshell-mode))
+
+(use-package editorconfig
+  :config
+  (editorconfig-mode))
+
+;; Wait for multi-server support to be implemented
+(use-package eglot
+  :disabled t
+  :hook ((typescript-mode
+	  typescript-tsx-mode)
+	 . eglot-ensure)
+  :config
+  (add-to-list 'eglot-server-programs
+	       '(typescript-tsx-mode "typescript-language-server" "--stdio")))
 
 (use-package lsp-mode
-  :commands lsp-deferred)
+  :custom
+  (lsp-completion-provider :none)
+  (lsp-keymap-prefix "C-c l")
+  :hook ((ruby-mode
+	  typescript-mode
+	  typescript-tsx-mode)
+	 . lsp-deferred))
 
 (use-package meow
   :config
@@ -140,6 +204,9 @@
   (meow-global-mode))
 
 (use-package magit
+  :custom
+  (magit-bury-buffer-function 'magit-restore-window-configuration)
+  (magit-display-buffer-function 'magit-display-buffer-fullcolumn-most-v1)
   :bind ("C-x g" . magit-status))
 
 (use-package marginalia
@@ -159,16 +226,31 @@
 	completion-category-overrides '((file (styles partial-completion)))))
 
 (use-package org
-  :straight (:type built-in))
+  :straight (:type built-in)
+  :custom
+  (org-log-done 'time)
+  (org-outline-path-complete-in-steps nil)
+  (org-refile-targets
+   '((org-agenda-files :maxlevel . 1)))
+  (org-refile-use-outline-path 'file)
+  (org-todo-keywords '((sequence "TODO(t)" "PROG(p)" "|" "DONE(d)")
+		       (sequence "WAIT(w)" "HOLD(h)" "IDEA(i)" "|" "STOP(s@/!)")))
+  (org-use-fast-todo-selection 'expert))
 
 (use-package org-agenda
   :straight (:type built-in)
   :custom
-  (org-agenda-files `(,org-directory ,(concat (file-name-as-directory org-directory) org-roam-dailies-directory)))
-  :bind ("C-c a" . org-agenda))
+  (org-agenda-files `(,org-directory ,(concat (file-name-as-directory org-directory) "daily")))
+  :bind ("C-c A" . org-agenda))
 
+;; Trying out denote
 (use-package org-roam
+  :disabled t
   :custom
+  (org-roam-capture-templates
+   '(("d" "default" plain "%?" :target
+      (file+head "${slug}.org" "#+title: ${title}\n")
+      :unnarrowed t)))
   (org-roam-directory org-directory)
   (org-roam-node-display-template (concat "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
   :bind (("C-c n l" . org-roam-buffer-toggle)
@@ -185,6 +267,22 @@
   :config
   (global-org-modern-mode))
 
+(use-package popwin
+  :config
+  (popwin-mode))
+
+(use-package prettier-js
+  :hook (typescript-tsx-mode . maybe-enable-prettier-js-mode)
+  :init
+  (defun maybe-enable-prettier-js-mode ()
+    (if (locate-dominating-file default-directory ".prettierrc")
+	(prettier-js-mode 1))))
+
+(use-package project
+  :straight (:type built-in)
+  :commands (project-find-file
+	     project-switch-project))
+
 (use-package recentf
   :straight (:type built-in)
   :config
@@ -194,18 +292,6 @@
   :straight (:type built-in)
   :config
   (savehist-mode))
-
-(use-package tabspaces
-  :custom
-  (tabspaces-use-filtered-buffers-as-default t)
-  (tabspaces-default-tab "Default")
-  (tabspaces-remove-to-default t)
-  (tabspaces-include-buffers '("*scratch*"))
-  ;; sessions
-  (tabspaces-session t)
-  (tabspaces-session-auto-restore t)
-  :config
-  (tabspaces-mode))
 
 (use-package tree-sitter
   :custom
